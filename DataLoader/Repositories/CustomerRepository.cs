@@ -16,23 +16,36 @@ namespace DataLoader.Repositories
             _client = client;
         }
 
-        public async Task CreateCustomer(string nodeId, string uplineId, DateTime date)
+        public async Task<string> CreateCustomer(string? nodeId, string uplineId, int? customerType, DateTime date)
         {
             var customer = Customers.GetRandomCustomer().ToCustomer(nodeId, date);
-            await CreateCustomer(customer, uplineId);
+            customer.CustomerType = customerType;
+            return await CreateCustomer(customer, uplineId);
         }
 
         public async Task<string> CreateCustomer(Customer customer, string uplineId)
         {
             var result = await _client.Post<Customer, Customer>("/api/v1/Customers", customer);
-            await _client.Post<Placement, Placement>("/api/v1/Placements", new Placement { NodeId = result.Id, UplineId = uplineId, Date = customer.SignupDate.HasValue ? customer.SignupDate.Value : DateTime.UtcNow });
+            await _client.Post<Placement, Placement>("/api/v1/Placements", new Placement { NodeId = result.nId, UplineId = uplineId, Date = customer.SignupDate.HasValue ? customer.SignupDate.Value : DateTime.UtcNow });
 
             return result.Id;
         }
 
-        public async Task GenerateVolume(Source source)
+        public async Task<Customer> SaveCustomer(Customer customer)
+        {
+            return await _client.Put<Customer, Customer>($"/api/v1/Customers/{customer.Id}", customer);
+        }
+
+        public async Task InsertSource(Source source)
         {
             await _client.Post<Source, Source>("/api/v1/Sources", source);
+        }
+
+        public async Task<Source?> GetSource(string nodeId, string sourceGroupId)
+        {
+            var sources = await _client.Get<Source[]>($"/api/v1/Sources?nodeId={nodeId}&sourceGroupId={sourceGroupId}");
+
+            return sources.FirstOrDefault();
         }
 
         public async Task<IEnumerable<Customer>> GetCustomers()

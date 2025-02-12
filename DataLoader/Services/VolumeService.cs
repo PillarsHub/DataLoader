@@ -56,7 +56,7 @@ namespace DataLoader.Services
             {
                 foreach(var group in sourceGroups)
                 {
-                    await _customerRepository.GenerateVolume(new Source
+                    await _customerRepository.InsertSource(new Source
                     {
                         NodeId = customerId,
                         SourceGroupId = group,

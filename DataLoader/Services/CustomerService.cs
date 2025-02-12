@@ -12,21 +12,27 @@ namespace DataLoader.Services
             _customerRepository = customerRepository;
         }
 
-        public async Task CreateCustomers(int count, int customerType, DateTime date)
+        public async Task CreateCustomers(int count, int customerType, string? uplineId, DateTime date)
         {
             List<string> customerIds = new List<string>();
             var existing = await _customerRepository.GetCustomers();
-            customerIds.AddRange(existing.Select(x => x.Id));
+            customerIds.AddRange(existing.Select(x => x.nId));
 
             for (int i = 0; i < count; i++)
             {
-                var uplineId = customerIds.GetRandom("0");
-                var customer = Customers.GetRandomCustomer().ToCustomer();
-                customer.CustomerType = customerType;
-
-                var customerId = await _customerRepository.CreateCustomer(customer, uplineId);
-                customerIds.Add(customerId);
-                Console.WriteLine($"Generating customer {i + 1} of {count}: Id:{customerId} uplineId:{uplineId}");
+                uplineId = uplineId ?? customerIds.GetRandom("0");
+                try
+                {
+                    var customer = Customers.GetRandomCustomer().ToCustomer();
+                    customer.CustomerType = customerType;
+                    var customerId = await _customerRepository.CreateCustomer(customer, uplineId);
+                    customerIds.Add(customerId);
+                    Console.WriteLine($"Generating customer {i + 1} of {count}: Id:{customerId} uplineId:{uplineId}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                }
             }
         }
     }

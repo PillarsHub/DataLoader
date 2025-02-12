@@ -1,7 +1,9 @@
 ﻿using DataLoader.Http;
 using DataLoader.Repositories.Models;
 using DataLoader.Services;
+using DataLoader.Services.Import;
 using Microsoft.Extensions.DependencyInjection;
+using System.Web;
 
 namespace DataLoader
 {
@@ -10,12 +12,13 @@ namespace DataLoader
         public static async Task Main(string[] args)
         {
             User user = await Login();
+            //User user = await GetTokenUser("3t05LPhs1L76qaKK50sp9TDXntpP3WGcsVNKJDFv0dpY");
             var services = new ServiceCollection();
             Startup.ConfigureServices(services, user.AuthToken.Token);
             using var serviceProvider = services.BuildServiceProvider();
 
             Console.Clear();
-            Console.WriteLine($"Connected to '{user.AuthToken.EnvironmentName}'");
+            Console.WriteLine($"Connected to '{user.AuthToken.EnvironmentId} - {user.AuthToken.EnvironmentName}'");
 
             while (true)
             {
@@ -39,10 +42,16 @@ namespace DataLoader
                     var volumeService = serviceProvider.GetRequiredService<VolumeService>();
                     await CreateVolumes(volumeService);
                 }
+                else if (input == "i")
+                {
+                    var importer = serviceProvider.GetRequiredService<ImportManager>();
+                    await importer.BeginImport();
+                }
                 else if (input == "help")
                 {
                     Console.WriteLine("'(C)ustomers' - Generate test Customers.");
                     Console.WriteLine("(V)olume - Generate volume for existing customers");
+                    Console.WriteLine("(I)mport Data - Import data from a CSV file.");
                     Console.WriteLine("exit - Exit Pillars Data Loader.");
                 }
                 else
@@ -91,9 +100,18 @@ namespace DataLoader
             Console.WriteLine("What period would you like to generate volume for? (Press Enter for current period)");
             Console.Write("> ");
             var date = ReadDate();
-            if (count > 0)
+            Console.WriteLine($"Do you wish to assign a sponsor (y/n)");
+            Console.Write("> ");
+            var useSponsor = Console.ReadLine() ?? string.Empty;
+            if (useSponsor.ToLower() == "y")
             {
-                await customerService.CreateCustomers(count, customerType, date);
+                Console.WriteLine("Enter upline Id");
+                var uplineId = Console.ReadLine();
+                await customerService.CreateCustomers(count, customerType, uplineId, date);
+            }
+            else if (count > 1)
+            {
+                await customerService.CreateCustomers(count, customerType, null, date);
             }
         }
 
@@ -126,21 +144,57 @@ namespace DataLoader
             }
         }
 
-        private static async Task<User> Login()
+        private static async Task<User?> GetTokenUser(string token)
+        {
+            AuthToken? authToken = null;
+            try
+            {
+                var client = new Client("");
+                authToken = await client.Get<AuthToken>($"/Authentication/token/{token}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine();
+                Console.WriteLine(ex.Message);
+            }
+
+            if (authToken == null) return null;
+
+            var envClient = new Client(token);
+            var environments = await envClient.Get<EnvironmentItem[]>($"/Authentication/token/{authToken.Token}/Environments");
+            var selEnv = environments.FirstOrDefault(x => x.Id == authToken.EnvironmentId);
+            authToken.EnvironmentName = selEnv.Name;
+
+            return new User
+            {
+                AuthToken = authToken
+            };
+        }
+
+        private static async Task<User> Login(string? un = null)
         {
             User user = null;
             Console.WriteLine("Welcome to the data Loader. Please login.");
             while (user == null)
             {
-                Console.Write("Username:");
-                var username = Console.ReadLine();
+                var username = un;
+
+                if (string.IsNullOrWhiteSpace(username))
+                { 
+                    Console.Write("Username:");
+                    username = Console.ReadLine();
+                }
+                else
+                {
+                    Console.WriteLine($"Username: {username}");
+                }
                 Console.Write("Password:");
                 var password = ReadPassword();
 
                 try
                 {
                     var client = new Client("");
-                    user = await client.Get<User>($"/Authentication?username={username}&password={password}");
+                    user = await client.Get<User>($"/Authentication?username={HttpUtility.UrlEncode(username)}&password={HttpUtility.UrlEncode(password)}");
                 }
                 catch (Exception ex)
                 {

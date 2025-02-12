@@ -1,8 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Linq;
-using System.Net.Http;
-using System.Net.Http.Json;
-using System.Threading.Tasks;
+﻿using System.Net.Http.Json;
 
 namespace DataLoader.Http
 {
@@ -44,7 +40,7 @@ namespace DataLoader.Http
                 responseMessage.StatusCode == System.Net.HttpStatusCode.Created ||
                 responseMessage.StatusCode == System.Net.HttpStatusCode.Accepted)
             {
-                return Newtonsoft.Json.JsonConvert.DeserializeObject<T>(content);
+                    return Newtonsoft.Json.JsonConvert.DeserializeObject<T>(content);
             }
 
             if (responseMessage.StatusCode == System.Net.HttpStatusCode.NoContent)
