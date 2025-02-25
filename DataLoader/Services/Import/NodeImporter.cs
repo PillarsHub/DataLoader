@@ -15,25 +15,6 @@ namespace DataLoader.Services.Import
             _csvFileReader = sVFileReader;
         }
 
-        private async Task<Node?> GetNode(string nodeId)
-        {
-            try //Try Binary Tree
-            {
-                return await _nodeRepository.GetNode(215, nodeId);
-            }
-            catch
-            {
-                try //Tree Placement Tree
-                {
-                    return await _nodeRepository.GetNode(214, nodeId);
-                }
-                catch
-                {
-                    return null;
-                }
-            }
-        }
-
         public async Task ImpmortNodes(string filePath)
         {
             //recordnumber,last_modified,DistributorID,UplineID,UplineLeg,TreeIndex,UplineIndex
@@ -46,9 +27,8 @@ namespace DataLoader.Services.Import
                 Console.WriteLine($"{t.Id} - {t.Name}");
             }
 
-            //var treeIdString = Console.ReadLine();
-            //long.TryParse(treeIdString, out long treeId);
-            var treeId = 215;
+            var treeIdString = Console.ReadLine();
+            long.TryParse(treeIdString, out long treeId);
 
             var data = _csvFileReader.ReadCsvFile(filePath);
 
@@ -57,15 +37,14 @@ namespace DataLoader.Services.Import
 
             foreach (var row in data)
             {
-                row.TryGetValue("AssociateID", out string? nodeId);
-                row.TryGetValue("EnrollerID", out string? uplineId);
+                row.TryGetValue("nodeId", out string? nodeId);
+                row.TryGetValue("uplineId", out string? uplineId);
                 if (nodeId != null && uplineId != null)
                 {
-                    var leg = "Holding Tank";
+                    var leg = nodeId;
 
                     if (treeId > 0 && uplineId != null)
                     {
-                        //await _nodeRepository.InsertNode(treeId, nodeId, uplineId, leg);
                         nodes.Add(new Node { NodeId = nodeId, UplineId = uplineId, UplineLeg = leg });
                         Console.WriteLine($"Imported {nodeId} {uplineId}");
                     }
@@ -76,10 +55,22 @@ namespace DataLoader.Services.Import
                 }
             }
 
-            foreach(var node in nodes)
+            List<object> ErrorList = new List<object>();
+
+            foreach (var node in nodes)
             {
-                await _nodeRepository.InsertNode(treeId, node.NodeId, node.UplineId, node.UplineLeg);
-                Console.WriteLine($"Imported {node.NodeId} {node.UplineId}");
+                try
+                {
+                    await _nodeRepository.InsertNode(treeId, node.NodeId, node.UplineId, node.UplineLeg);
+                    Console.WriteLine($"Imported {node.NodeId} {node.UplineId}");
+                }
+                catch (Exception ex)
+                {
+                    lock (ErrorList) // Ensure thread safety when modifying the shared list
+                    {
+                        ErrorList.Add(new { msg = ex.Message, node = node });
+                    }
+                }
             }
 
             Console.WriteLine($"Imported {data.Count} rows");

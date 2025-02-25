@@ -15,9 +15,9 @@ namespace DataLoader.Services.Import
             _csvFileReader = sVFileReader;
         }
 
-        public async Task ImpmortOrders(string orderFile, string lineItemFile)
+        public async Task ImportOrders(string orderFile, string lineItemFile)
         {
-            var timeZoneId = "Pacific Standard Time";
+            var timeZoneId = "Mountain Standard Time";
             var dateFormat = "M/d/yyyy H:mm";
 
             await Task.CompletedTask;
@@ -33,8 +33,8 @@ namespace DataLoader.Services.Import
 
                 return new OrderLineItem
                 {
-                    OrderId = x["orderID"],
-                    ProductId = x["productID"],
+                    OrderId = x["orderId"],
+                    ProductId = x["productId"],
                     Description = x["description"],
                     Price = price,
                     Quantity = quantity,
@@ -57,11 +57,11 @@ namespace DataLoader.Services.Import
                 //decimal.TryParse(x[""], out decimal taxRate);
                 decimal.TryParse(x["total"], out decimal total);
 
-                decimal.TryParse(x["TotalCV"], out decimal totalCV);
-                decimal.TryParse(x["TotalQV"], out decimal totalQV);
+                decimal.TryParse(x["totalCV"], out decimal totalCV);
+                decimal.TryParse(x["totalQV"], out decimal totalQV);
 
-                var ii = x["orderID"];
-                lineItems.TryGetValue(x["orderID"], out OrderLineItem[]? items);
+                var ii = x["id"];
+                lineItems.TryGetValue(x["id"], out OrderLineItem[]? items);
 
                 if (items != null && items.Length > 0)
                 {
@@ -83,8 +83,8 @@ namespace DataLoader.Services.Import
 
                 return new Order
                 {
-                    Id = x["orderID"],
-                    CustomerId = x["customerID"],
+                    Id = x["id"],
+                    CustomerId = x["customerId"],
                     OrderDate = orderDate.Value,
                     InvoiceDate = invoiceDate,
                     OrderType = x["orderType"],
@@ -94,61 +94,45 @@ namespace DataLoader.Services.Import
                     Tax = taxCost,
                     //TaxRate = taxRate,
                     Total = total,
-                    Status = MapStatus(x["status"]),
-                    //Tracking = x["Tracking"],
+                    Status = x["status"],
+                    Tracking = x["tracking"],
                     //Notes = x["Notes"],
-                    /*ShipAddress = new ShipAddress
+                    ShipAddress = new ShipAddress
                     {
-                        Line1 = x["Notes"],
-                        Line2 = x["Notes"],
-                        Line3 = x["Notes"],
-                        City = x["Notes"],
-                        StateCode = x["Notes"],
-                        Zip = x["Notes"],
-                        CountryCode = x["Notes"],
-                    },*/
+                        Line1 = x["shipline1"],
+                        Line2 = x["shipline2"],
+                        City = x["shipcity"],
+                        StateCode = x["shipstateCode"],
+                        Zip = x["shipzip"],
+                        CountryCode = x["countryCode"],
+                    },
 
                     LineItems = items
                 };
             }).ToArray();
 
-            foreach (var order in orders)
+            var maxInvoice = orders.MaxBy(x => x.InvoiceDate);
+            var maxOrder = orders.MaxBy(x => x.OrderDate);
+
+            List<object> ErrorList = new List<object>();
+
+            await Parallel.ForEachAsync(orders, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount }, async (order, cancellationToken) =>
             {
-                await _orderRepository.InsertOrder(order);
-                Console.WriteLine($"Imported {order.Id} {order.CustomerId}");
-            }
+                try
+                {
+                    await _orderRepository.InsertOrder(order);
+                    Console.WriteLine($"Imported {order.Id} {order.CustomerId}");
+                }
+                catch (Exception ex)
+                {
+                    lock (ErrorList) // Ensure thread safety when modifying the shared list
+                    {
+                        ErrorList.Add(new { msg = ex.Message, order = order });
+                    }
+                }
+            });
 
             Console.WriteLine($"Imported {orderRows.Count} rows");
-        }
-
-        private string MapStatus(string status)
-        {
-            switch (status)
-            {
-                case "Shipped":
-                    return "1";
-                case "Accepted":
-                    return "2";
-                case "Printed":
-                    return "3";
-                case "Awaiting Shipment":
-                    return "4";
-                case "Refunded":
-                    return "5";
-                case "Processing RMA":
-                    return "6";
-                case "Payment Declined":
-                    return "7";
-                case "Paid":
-                    return "8";
-                case "Partial Returned":
-                    return "9";
-                case "Returned":
-                    return "10";
-                default:
-                    throw new NotImplementedException();
-            }
-
         }
 
         private DateTime? ReadDate(string date, string dateFormat, string timeZoneId)

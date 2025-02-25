@@ -1,5 +1,6 @@
 ﻿using DataLoader.Repositories;
 using DataLoader.Repositories.Models;
+using System.Collections.Concurrent;
 using System.Globalization;
 
 namespace DataLoader.Services.Import
@@ -8,6 +9,7 @@ namespace DataLoader.Services.Import
     {
         private readonly CustomerRepository _customerRepository;
         private readonly CSVFileReader _csvFileReader;
+        private readonly ConcurrentDictionary<string, int> _emailTracker = new();
 
         public CustomerImporter(CustomerRepository customerRepository, CSVFileReader sVFileReader)
         {
@@ -17,88 +19,106 @@ namespace DataLoader.Services.Import
 
         public async Task ImpmortCustomers(string filePath)
         {
-            var timeZoneId = "Pacific Standard Time";
+            var timeZoneId = "Mountain Standard Time";
             var dateFormat = "M/d/yyyy H:mm";
 
             var data = _csvFileReader.ReadCsvFile(filePath);
 
-            List<object> ErrorList = new List<object>();
+            List<Customer> customers = new List<Customer>();
 
             foreach (var row in data)
             {
-                
-                //,
-                //SecondaryPhone,
-                //TextPhone,
-
-
-                var signUpDate = ReadDate(row["SignUpDate"], dateFormat, timeZoneId);
-                var birthDate = ReadDate(row["BirthDate"], dateFormat, timeZoneId);
-                int.TryParse(row["CustomerType"], out int customerType);
-                int.TryParse(row["StatusID"], out int status);
+                var signUpDate = ReadDate(row["signupDate"], dateFormat, timeZoneId);
+                var birthDate = ReadDate(row["birthDate"], dateFormat, timeZoneId);
+                int.TryParse(row["customerType"], out int customerType);
+                int.TryParse(row["status"], out int status);
 
                 var billAddress = new Address
                 {
                     Type = "Billing",
-                    Line1 = row["BillAddress1"],
-                    Line2 = row["BillAddress2"],
-                    City = row["BillCity"],
-                    StateCode = row["BillState"],
-                    Zip = row["BillPostalCode"],
-                    CountryCode = row["BillCountry"]
+                    Line1 = row["billline1"],
+                    Line2 = row["billline2"],
+                    City = row["billcity"],
+                    StateCode = row["billstateCode"],
+                    Zip = row["billzip"],
+                    CountryCode = row["billcountryCode"]
                 };
 
                 var shipAddress = new Address
                 {
                     Type = "Shipping",
-                    Line1 = row["ShipAddress1"],
-                    Line2 = row["ShipAddress2"],
-                    City = row["ShipCity"],
-                    StateCode = row["ShipState"],
-                    Zip = row["ShipPostalCode"],
-                    CountryCode = row["ShipCountry"]
+                    Line1 = row["shipline1"],
+                    Line2 = row["shipline2"],
+                    City = row["shipcity"],
+                    StateCode = row["shipstateCode"],
+                    Zip = row["shipzip"],
+                    CountryCode = row["shipcountryCode"]
                 };
 
-                var customer = new Customer
+                var customerId = row["id"];
+                var email = row["emailAddress"];
+
+                //if (status == 5)
+                //{
+                //    email = AppendValueToEmail(email, "T");
+                //    status = 4;
+                //}
+
+                customers.Add(new Customer
                 {
-                    Id = row["NodeID"],
-                    FirstName = row["FirstName"],
-                    LastName = row["LastName"],
-                    CompanyName = row["CompanyName"],
-                    EmailAddress = row["EmailAddress"],
-                    Language = row["Language"],
-                    WebAlias = row["WebAlias"],
+                    Id = customerId,
+                    FirstName = row["firstName"],
+                    LastName = row["lastName"],
+                    CompanyName = row["companyName"],
+                    EmailAddress = email,
+                    Language = row["language"],
+                    WebAlias = row["webAlias"],
+                    Status = (status * 10).ToString(),
                     BirthDate = birthDate,
                     SignupDate = signUpDate,
                     CustomerType = customerType,
                     Addresses = new List<Address>(new[] { billAddress, shipAddress }),
-                    PhoneNumbers = new List<PhoneNumber>(new[] { new PhoneNumber { Number = row["PrimaryPhone"], Type = "primary" } })
-                };
+                    PhoneNumbers = new List<PhoneNumber>(new[] { new PhoneNumber { Number = row["primaryPhone"], Type = "primary" } })
+                });
+            }
 
+            List<ErrorItem> ErrorList = new List<ErrorItem>();
+
+            var duplicateEmails = customers.GroupBy(x => x.EmailAddress).Where(x => !string.IsNullOrWhiteSpace(x.Key) && x.Count() > 1);
+
+            await Parallel.ForEachAsync(customers, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount }, async (customer, cancellationToken) =>
+            {
                 try
                 {
                     await _customerRepository.SaveCustomer(customer);
-
-                    //await _customerRepository.InsertSource(new Sources.Source
-                    //{
-                    //    Date = signUpDate.Value,
-                    //    ExternalId = Guid.NewGuid().ToString(),
-                    //    NodeId = row["NodeID"],
-                    //    SourceGroupId = "Status",
-                    //    Value = status == 1 ? "ACT" : "INA"
-                    //});
                 }
                 catch (Exception ex)
                 {
-                    ErrorList.Add(new { msg = ex.Message, cust = customer });
+                    ErrorList.Add(new ErrorItem { Message = ex.Message, Item = customer });
                 }
 
+                Console.WriteLine($"Imported {customer.Id}");
+            });
 
-                Console.WriteLine($"Imported {row["NodeID"]}");
-            }
+
+            var errors = ErrorList.GroupBy(x => x.Message).ToDictionary(x=> x.Key, x => x.ToList());
 
             Console.WriteLine($"Imported {data.Count} rows");
         }
+
+        //public string AppendValueToEmail(string email, string value)
+        //{
+        //    if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(value)) return string.Empty;
+
+        //    int count = _emailTracker.AddOrUpdate(email, 1, (_, existingCount) => existingCount + 1);
+        //    string indexPart = count > 1 ? count.ToString() : string.Empty;
+
+        //    var parts = email.Split('@');
+        //    if (parts.Length != 2)
+        //        return $"{email}+{value}{indexPart}";
+
+        //    return $"{parts[0]}+{value}{indexPart}@{parts[1]}";
+        //}
 
         private DateTime? ReadDate(string date, string dateFormat, string timeZoneId)
         {
@@ -119,5 +139,18 @@ namespace DataLoader.Services.Import
                 throw new Exception("Failed to parse order date.");
             }
         }
+    }
+
+
+    internal class EmailMap
+    {
+        public string CustomerId { get; set; }
+        public string EmailAddress { get; set; }
+    }
+
+    internal class ErrorItem
+    {
+        public string Message { get; set; }
+        public object Item { get; set; }
     }
 }

@@ -6,6 +6,7 @@
         public List<string> ExternalIds { get; set; } = Array.Empty<string>().ToList();
         public int? CustomerType { get; set; } = null;
         public DateTime? SignupDate { get; set; } = null;
+        public string? Status { get; set; } = null;
         public string FirstName { get; set; } = string.Empty;
         public string MiddleName { get; set; } = string.Empty;
         public string LastName { get; set; } = string.Empty;

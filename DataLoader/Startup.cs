@@ -23,8 +23,11 @@ namespace DataLoader
             services.AddSingleton<VolumeService>();
             services.AddSingleton<SourceGroupRepository>();
             services.AddSingleton<OrderRepository>();
+            services.AddSingleton<ProductRepository>();
+            services.AddSingleton<AutoshipRepository>();
             services.AddSingleton<HistoricalValueRepository>();
             services.AddSingleton<HistoricalBonusRepository>();
+            services.AddSingleton<PaymentTokenRepository>();
 
             services.AddSingleton<CSVFileReader>();
             services.AddSingleton<ImportManager>();
@@ -34,6 +37,9 @@ namespace DataLoader
             services.AddSingleton<HistoricalValueImporter>();
             services.AddSingleton<HistoricalBonusImporter>();
             services.AddSingleton<SourceImporter>();
+            services.AddSingleton<InventoryImporter>();
+            services.AddSingleton<AutoshipImporter>();
+            services.AddSingleton<PaymentTokenImporter>();
         }
     }
 }

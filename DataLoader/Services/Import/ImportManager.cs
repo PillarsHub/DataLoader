@@ -4,29 +4,39 @@
     {
         private readonly NodeImporter _nodeImporter;
         private readonly OrderImporter _orderImporter;
+        private readonly InventoryImporter _inventoryImporter;
         private readonly CustomerImporter _customerImporter;
         private readonly HistoricalValueImporter _historicalValueImporter;
         private readonly HistoricalBonusImporter _historicalBonusImporter;
         private readonly SourceImporter _sourceImporter;
+        private readonly AutoshipImporter _autoshipImporter;
+        private readonly PaymentTokenImporter _paymentTokenImporter;
 
-        public ImportManager(NodeImporter nodeImporter, OrderImporter orderImporter, CustomerImporter customerImporter, 
-            HistoricalValueImporter historicalValueImporter, SourceImporter sourceImporter, HistoricalBonusImporter historicalBonusImporter)
+        public ImportManager(NodeImporter nodeImporter, OrderImporter orderImporter, CustomerImporter customerImporter, InventoryImporter inventoryImporter,
+            HistoricalValueImporter historicalValueImporter, SourceImporter sourceImporter, HistoricalBonusImporter historicalBonusImporter, 
+            AutoshipImporter autoshipImporter, PaymentTokenImporter paymentTokenImporter)
         {
             _nodeImporter = nodeImporter;
             _orderImporter = orderImporter;
             _customerImporter = customerImporter;
             _historicalValueImporter = historicalValueImporter;
             _sourceImporter = sourceImporter;
+            _inventoryImporter = inventoryImporter;
             _historicalBonusImporter = historicalBonusImporter;
+            _autoshipImporter = autoshipImporter;
+            _paymentTokenImporter = paymentTokenImporter;
         }
 
         public async Task BeginImport()
         {
             Console.WriteLine("What would you like to import");
+            Console.WriteLine("(A)utoships");
+            Console.WriteLine("(C)ustomers");
             Console.WriteLine("(N)odes");
             Console.WriteLine("(O)rders");
-            Console.WriteLine("(C)ustomers");
             Console.WriteLine("(S)ources");
+            Console.WriteLine("(I)nventory");
+            Console.WriteLine("Payment (T)okens");
             Console.WriteLine("Historical (V)alues");
             Console.WriteLine("Historical (B)onuses");
 
@@ -44,6 +54,24 @@
 
                 await _nodeImporter.ImpmortNodes(filePath.Trim('"'));
             }
+            else if (input == "a")
+            {
+                string? orderPath = GetFilePathFromDialog("Autoships");
+                if (string.IsNullOrWhiteSpace(orderPath))
+                {
+                    Console.WriteLine("No file selected.");
+                    return;
+                }
+                string? lineItemPath = GetFilePathFromDialog("Line Items");
+                if (string.IsNullOrWhiteSpace(lineItemPath))
+                {
+                    Console.WriteLine("No file selected.");
+                    return;
+                }
+
+
+                await _autoshipImporter.ImportAutoships(orderPath.Trim('"'), lineItemPath.Trim('"'));
+            }
             else if (input == "o")
             {
                 string? orderPath = GetFilePathFromDialog("Orders");
@@ -60,7 +88,7 @@
                 }
 
 
-                await _orderImporter.ImpmortOrders(orderPath.Trim('"'), lineItemPath.Trim('"'));
+                await _orderImporter.ImportOrders(orderPath.Trim('"'), lineItemPath.Trim('"'));
             }
             else if (input == "c")
             {
@@ -72,6 +100,17 @@
                 }
 
                 await _customerImporter.ImpmortCustomers(customerPath.Trim('"'));
+            }
+            else if (input == "t")
+            {
+                string? customerPath = GetFilePathFromDialog("Payment Tokens");
+                if (string.IsNullOrWhiteSpace(customerPath))
+                {
+                    Console.WriteLine("No file selected.");
+                    return;
+                }
+
+                await _paymentTokenImporter.ImportPaymentTokens(customerPath.Trim('"'));
             }
             else if (input == "v")
             {
@@ -94,6 +133,23 @@
                 }
 
                 await _historicalBonusImporter.Import(customerPath.Trim('"'));
+            }
+            else if (input == "i")
+            {
+                string? productPath = GetFilePathFromDialog("Products");
+                if (string.IsNullOrWhiteSpace(productPath))
+                {
+                    Console.WriteLine("No file selected.");
+                    return;
+                }
+                string? pricePath = GetFilePathFromDialog("Prices");
+                if (string.IsNullOrWhiteSpace(pricePath))
+                {
+                    Console.WriteLine("No file selected.");
+                    return;
+                }
+
+                await _inventoryImporter.ImportInventory(productPath.Trim('"'), pricePath.Trim('"'));
             }
             else if (input == "s")
             {

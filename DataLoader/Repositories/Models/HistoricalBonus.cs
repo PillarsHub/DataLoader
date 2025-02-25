@@ -7,5 +7,7 @@
         public long PeriodId { get; set; }
         public string NodeId { get; set; } = string.Empty;
         public decimal? Amount { get; set; }
+
+        internal DateTime? PeriodDate { get; set; }
     }
 }
