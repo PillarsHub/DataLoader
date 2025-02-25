@@ -16,10 +16,8 @@ This console application is developed to facilitate load testing for PillarsHub.
 
 ## Features
 
-- Generate test data with customizable parameters.
-- Upload test data to PillarsHub.com.
-- Monitor and log the performance of data uploads.
-- Configurable settings for various load testing scenarios.
+- Generate test data to PillarsHub.com.
+- Upload csv data to PillarsHub.com.
 
 ## Installation
 
