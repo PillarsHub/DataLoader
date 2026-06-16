@@ -63,6 +63,45 @@ namespace DataLoader.Services.Import
             });
         }
 
+        public async Task ImpmortBinaryNodes(string basePath, long treeId, IImportProfile<BinaryTreeImportRequest>? nodeProfile)
+        {
+            if (nodeProfile == null)
+            {
+                Console.WriteLine($"No node map to import.");
+                return;
+            }
+
+            //Move all nodes to holding tank, to allow for proper placemens
+            await ImportNodes(basePath, nodeProfile.SourceFile, treeId, row =>
+            {
+                var map = nodeProfile.Map(row);
+                if (map == null) return null;
+
+                return new Node
+                {
+                    NodeId = map.NodeId,
+                    UplineId = map.UplineId,
+                    UplineLeg = "Holding Tank",
+                    EffectiveDate = map.EffectiveDate
+                };
+            });
+
+            //Final Pass
+            await ImportNodes(basePath, nodeProfile.SourceFile, treeId, row =>
+            {
+                var map = nodeProfile.Map(row);
+                if (map == null) return null;
+
+                return new Node
+                {
+                    NodeId = map.NodeId,
+                    UplineId = map.UplineId,
+                    UplineLeg = map.NodeId,
+                    EffectiveDate = map.EffectiveDate
+                };
+            });
+        }
+
         private async Task ImportNodes(string basePath, string filePath, long treeId, Func<Dictionary<string,string>, Node?> map)
         {
             Console.WriteLine($"Reading Customer Headers");

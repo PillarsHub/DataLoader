@@ -10,9 +10,3 @@ public class OrderLineItemImportRequest
     public OrderLineItemVolume[]? Volume { get; set; }
 }
 
-public class OrderLineItemVolume
-{
-    public string VolumeId { get; set; } = "";
-    public decimal Volume { get; set; }
-}
-

@@ -45,7 +45,7 @@ namespace DataLoader.Repositories
         {
             var sources = await _client.Get<Source[]>($"/api/v1/Sources?nodeId={nodeId}&sourceGroupId={sourceGroupId}");
 
-            return sources.FirstOrDefault();
+            return sources.OrderByDescending(x => x.Date).FirstOrDefault();
         }
 
         public async Task<IEnumerable<Customer>> GetCustomers()

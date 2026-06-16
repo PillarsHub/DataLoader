@@ -1,9 +1,7 @@
 ﻿using DataLoader.Importer;
 using DataLoader.Repositories;
 using DataLoader.Repositories.Models;
-using DataLoader.TestData;
 using Importer.Contracts;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace DataLoader.Services.Import
 {
@@ -19,7 +17,8 @@ namespace DataLoader.Services.Import
         }
 
         public async Task ImportOrders(string basePath, IImportProfile<OrderHeaderImportRequest>? headerProfile,
-            IImportProfile<OrderLineItemImportRequest>? lineItemProfile, IImportProfile<OrderPaymentImportRequest>? paymentProfile)
+            IImportProfile<OrderLineItemImportRequest>? lineItemProfile, IImportProfile<OrderVolumeImportRequest>? volumeProfile,
+            IImportProfile<OrderPaymentImportRequest>? paymentProfile)
         {
             if (headerProfile == null || lineItemProfile == null)
             {
@@ -27,13 +26,19 @@ namespace DataLoader.Services.Import
                 return;
             }
 
+            var paymentRows = new List<Dictionary<string, string>>();
+            var volumeRows = new List<Dictionary<string, string>>();
+
             Console.WriteLine($"Reading Order Headers");
             var orderRows = _csvFileReader.ReadCsvFile(Path.Combine(basePath, headerProfile.SourceFile));
+
             Console.WriteLine($"Reading Order LineItems");
             var lineItemRows = _csvFileReader.ReadCsvFile(Path.Combine(basePath, lineItemProfile.SourceFile));
-            Console.WriteLine($"Reading Order Payments");
-            var paymentRows = new List<Dictionary<string, string>>();
 
+            Console.WriteLine($"Reading Order Volume");
+            if (volumeProfile != null) volumeRows = _csvFileReader.ReadCsvFile(Path.Combine(basePath, volumeProfile.SourceFile));
+            
+            Console.WriteLine($"Reading Order Payments");
             if (paymentProfile != null) paymentRows = _csvFileReader.ReadCsvFile(Path.Combine(basePath, paymentProfile.SourceFile));
 
             var lineItemsByOrderId = lineItemRows.Select(x => lineItemProfile.Map(x))
@@ -43,6 +48,10 @@ namespace DataLoader.Services.Import
             var paymentsByOrderId = paymentRows.Select(x => paymentProfile?.Map(x))
                 .GroupBy(x => x.OrderId)
                 .ToDictionary(g => g.Key, g => g.ToList());
+
+            var orderVolume = volumeRows.Select(x => volumeProfile?.Map(x))
+                .GroupBy(x => x.OrderId)
+                .ToDictionary(g => g.Key, g => g.FirstOrDefault()?.Volume);
 
             var orders = new List<Order>();
             Console.WriteLine($"Building orders");
@@ -70,6 +79,11 @@ namespace DataLoader.Services.Import
                             }).ToArray()
                         }).ToArray()
                         : null;
+
+                if (orderVolume.TryGetValue(orderHeader.OrderId, out OrderLineItemVolume[]? oVol))
+                {
+                    lineItems = SetLineItemVolume(lineItems, oVol);
+                }
 
                 var shipAddress = !string.IsNullOrWhiteSpace(orderHeader.ShipLine1) ? new ShipAddress
                 {
@@ -128,6 +142,51 @@ namespace DataLoader.Services.Import
             }
 
             Console.WriteLine($"Imported {orderRows.Count} rows");
+        }
+
+        private OrderLineItem[]? SetLineItemVolume(OrderLineItem[]? current, OrderLineItemVolume[]? volume)
+        {
+            if (volume == null) return current;
+
+            // If there are no current items, create one item and attach the volume to it
+            if (current == null || current.Length == 0)
+            {
+                return new[]
+                {
+                    new OrderLineItem
+                    {
+                        Volume = volume
+                            .Select(v => new LineItemVolume
+                            {
+                                VolumeId = v.VolumeId,
+                                Volume = v.Volume
+                            })
+                            .ToArray()
+                    }
+                };
+            }
+
+            var first = current[0];
+
+            var existingVolumes = first.Volume ?? Array.Empty<LineItemVolume>();
+
+            // Start with existing values from the first item
+            var merged = existingVolumes
+                .ToDictionary(v => v.VolumeId, v => v, StringComparer.OrdinalIgnoreCase);
+
+            // Replace existing entries or add new ones from incoming volume
+            foreach (var v in volume)
+            {
+                merged[v.VolumeId] = new LineItemVolume
+                {
+                    VolumeId = v.VolumeId,
+                    Volume = v.Volume
+                };
+            }
+
+            first.Volume = merged.Values.ToArray();
+
+            return current;
         }
 
         private class ErrorItem

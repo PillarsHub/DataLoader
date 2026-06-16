@@ -80,6 +80,12 @@ namespace DataLoader.Services.Import
                         var headerProfile = await ScriptLoader.LoadProfileAsync<PlacementTreeImportRequest>(csxPath);
                         await _nodeImporter.ImpmortPlacementNodes(dirPath, treeId, headerProfile);
                     }
+
+                    if (treeTypeString == "b")
+                    {
+                        var headerProfile = await ScriptLoader.LoadProfileAsync<BinaryTreeImportRequest>(csxPath);
+                        await _nodeImporter.ImpmortBinaryNodes(dirPath, treeId, headerProfile);
+                    }
                 }
             }
             else if (input == "a")
@@ -106,8 +112,9 @@ namespace DataLoader.Services.Import
                 {
                     var headerProfile = await ScriptLoader.LoadProfileAsync<OrderHeaderImportRequest>(csxPath);
                     var lineItemProfile = await ScriptLoader.LoadProfileAsync<OrderLineItemImportRequest>(csxPath);
+                    var volumeProfile = await ScriptLoader.LoadProfileAsync<OrderVolumeImportRequest>(csxPath);
                     var paymentsProfile = await ScriptLoader.LoadProfileAsync<OrderPaymentImportRequest>(csxPath);
-                    await _orderImporter.ImportOrders(dirPath, headerProfile, lineItemProfile, paymentsProfile);
+                    await _orderImporter.ImportOrders(dirPath, headerProfile, lineItemProfile, volumeProfile, paymentsProfile);
                 }
             }
             else if (input == "c")
