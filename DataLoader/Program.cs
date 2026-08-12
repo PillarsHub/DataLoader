@@ -58,6 +58,11 @@ namespace DataLoader
                     var importer = serviceProvider.GetRequiredService<ImportManager>();
                     await importer.BeginImport();
                 }
+                else if (input == "d")
+                {
+                    var deleteDataManager = serviceProvider.GetRequiredService<DeleteDataManager>();
+                    await deleteDataManager.BeginDelete();
+                }
                 else if (input == "u")
                 {
                     var productRepository = serviceProvider.GetRequiredService<ProductRepository>();
@@ -80,6 +85,7 @@ namespace DataLoader
                     Console.WriteLine("(M)odel - Generate Model data for compensation plan modeling");
                     Console.WriteLine("(O)rders - Generate test Orders.");
                     Console.WriteLine("(I)mport Data - Import data from a CSV file.");
+                    Console.WriteLine("(D)elete Data - Bulk delete data");
                     Console.WriteLine("exit - Exit Pillars Data Loader.");
                 }
                 else
@@ -177,6 +183,7 @@ namespace DataLoader
             Console.Write("> ");
             var numberOfOrders = ReadInt();
             var orders = new List<(DateTime Begin, DateTime End, Distribution[] Distributions)>();
+            string[]? volumeKeys = null;
 
             for (int i = 0; i < numberOfOrders; i++)
             {
@@ -188,6 +195,10 @@ namespace DataLoader
                 Console.WriteLine("Please enter the END date (Press Enter to use customer date)");
                 Console.Write("> ");
                 var oEndDate = ReadDate(endDate);
+
+                Console.WriteLine("What is the volume key would you like to generate? (Press Enter to use CV,QV)");
+                var volumeKey = Console.ReadLine() ?? string.Empty;
+                volumeKeys = string.IsNullOrWhiteSpace(volumeKey) ? null : [volumeKey];
 
                 Console.WriteLine("What is the volume percentages would you like to generate?");
                 Distribution[]? volumeDistribution = null;
@@ -202,9 +213,8 @@ namespace DataLoader
                 orders.Add((oBeginDate, oEndDate, volumeDistribution));
             }
 
-            await customerService.CreateModel(count, beginDate, endDate, customerTypeDistribution, orders.ToArray());
+            await customerService.CreateModel(count, beginDate, endDate, customerTypeDistribution, volumeKeys, orders.ToArray());
         }
-
 
         private static async Task GenerateCustomers(CustomerService customerService)
         {
@@ -231,11 +241,11 @@ namespace DataLoader
                 Console.WriteLine("Would you like to stack the new customers under each new one created (y/n)");
                 var stack = Console.ReadLine()?.ToLower() == "y";
 
-                await customerService.CreateCustomers(count, customerType, uplineId, stack, date, null, customerIds);
+                await customerService.CreateCustomers(count, customerType, uplineId, stack, date, null, null, customerIds);
             }
             else if (count > 0)
             {
-                await customerService.CreateCustomers(count, customerType, null, false, date, null, customerIds);
+                await customerService.CreateCustomers(count, customerType, null, false, date, null, null, customerIds);
             }
         }
 

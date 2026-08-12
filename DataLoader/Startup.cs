@@ -42,6 +42,8 @@ namespace DataLoader
             services.AddSingleton<AutoshipImporter>();
             services.AddSingleton<PaymentTokenImporter>();
             services.AddSingleton<ImageUploader>();
+
+            services.AddSingleton<DeleteDataManager>();
         }
     }
 }

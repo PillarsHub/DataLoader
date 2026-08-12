@@ -43,7 +43,7 @@ namespace DataLoader.Services
             customerIds.TryAdd(newCust.Id ?? string.Empty, newCust);
         }
 
-        public async Task CreateCustomers(int count, int customerType, string? uplineId, bool stack, DateTime date, (DateTime Date, decimal Volume)[]? volumes, ConcurrentDictionary<string, Customer> customerIds)
+        public async Task CreateCustomers(int count, int customerType, string? uplineId, bool stack, DateTime date, string[]? volumeKeys, (DateTime Date, decimal Volume)[]? volumes, ConcurrentDictionary<string, Customer> customerIds)
         {
             //List<string> customerIds = new List<string>();
             if (customerIds.Count == 0)
@@ -68,7 +68,9 @@ namespace DataLoader.Services
                     {
                         foreach (var volume in volumes)
                         {
-                            await _orderService.CreateOrder(newCust.Id ?? string.Empty, volume.Date, volume.Volume, volume.Volume);
+                            var volKeys = volumeKeys == null ? ["CV", "QV"] : volumeKeys;
+                            var value = volKeys.Select(x => (x, volume.Volume)).ToArray();
+                            await _orderService.CreateOrder(newCust.Id ?? string.Empty, volume.Date, value);
                         }
                     }
 
@@ -85,7 +87,7 @@ namespace DataLoader.Services
 
 
 
-        public async Task CreateModel(int count, DateTime begin, DateTime end, Distribution[] typeDistribution, (DateTime Begin, DateTime End, Distribution[] Distributions)[] orders)
+        public async Task CreateModel(int count, DateTime begin, DateTime end, Distribution[] typeDistribution, string[]? volumeKeys, (DateTime Begin, DateTime End, Distribution[] Distributions)[] orders)
         {
             if (count < 0) throw new ArgumentOutOfRangeException(nameof(count));
             if (typeDistribution.Length == 0) throw new ArgumentException("typeDistribution required");
@@ -132,7 +134,7 @@ namespace DataLoader.Services
                     volumes.Add((orderDates.GetRandom(), orderDistDict[oIndex][i]));
                 }
 
-                await CreateCustomers(1, typeValues[i], null, false, dates.GetRandom(), volumes.ToArray(), customerIds);
+                await CreateCustomers(1, typeValues[i], null, false, dates.GetRandom(), volumeKeys, volumes.ToArray(), customerIds);
             });
         }
 
