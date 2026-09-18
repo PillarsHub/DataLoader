@@ -22,6 +22,7 @@ namespace DataLoader
             services.AddSingleton<CustomerService>();
             services.AddSingleton<OrderService>();
             services.AddSingleton<VolumeService>();
+            services.AddSingleton<NodeService>();
             services.AddSingleton<SourceGroupRepository>();
             services.AddSingleton<OrderRepository>();
             services.AddSingleton<ProductRepository>();
@@ -41,6 +42,8 @@ namespace DataLoader
             services.AddSingleton<InventoryImporter>();
             services.AddSingleton<AutoshipImporter>();
             services.AddSingleton<PaymentTokenImporter>();
+            services.AddSingleton<DataModelImporter>();
+            services.AddSingleton<ExtendedImporter>();
             services.AddSingleton<ImageUploader>();
 
             services.AddSingleton<DeleteDataManager>();

@@ -16,9 +16,6 @@ namespace DataLoader.Services.Import
 
         public async Task Import(string filePath)
         {
-            var timeZoneId = "Pacific Standard Time";
-            var dateFormat = "M/d/yyyy";
-
             var data = _csvFileReader.ReadCsvFile(filePath);
 
             foreach (var row in data)
@@ -41,9 +38,9 @@ namespace DataLoader.Services.Import
                         Value = amount
                     });
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
-                    int rr = 0;
+                    throw;
                 }
 
                 Console.WriteLine($"Imported {nodeId}");

@@ -40,8 +40,20 @@ namespace DataLoader
                 }
                 else if (input == "m")
                 {
-                    var customerService = serviceProvider.GetRequiredService<CustomerService>();
-                    await GenerateModel(customerService);
+                    Console.WriteLine("(G)enerate a new Model");
+                    Console.WriteLine("(I)mporto a new Model");
+                    Console.Write("> ");
+                    var modelMethod = Console.ReadLine()?.ToLower() ?? string.Empty;
+                    if (modelMethod == "g")
+                    {
+                        var customerService = serviceProvider.GetRequiredService<CustomerService>();
+                        await GenerateModel(customerService);
+                    }
+                    else
+                    {
+                        var importer2 = serviceProvider.GetRequiredService<ImportManager>();
+                        await importer2.ImportModel();
+                    }
                 }
                 else if (input == "v")
                 {
@@ -82,7 +94,7 @@ namespace DataLoader
                 {
                     Console.WriteLine("(C)ustomers - Generate test Customers.");
                     Console.WriteLine("(V)olume - Generate volume for existing customers");
-                    Console.WriteLine("(M)odel - Generate Model data for compensation plan modeling");
+                    Console.WriteLine("(M)odel - Generate or Import a Model data for compensation plan modeling");
                     Console.WriteLine("(O)rders - Generate test Orders.");
                     Console.WriteLine("(I)mport Data - Import data from a CSV file.");
                     Console.WriteLine("(D)elete Data - Bulk delete data");

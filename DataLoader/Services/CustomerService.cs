@@ -9,14 +9,16 @@ namespace DataLoader.Services
     {
         private readonly CustomerRepository _customerRepository;
         private readonly OrderService _orderService;
+        private readonly NodeRepository _nodeRepository;
 
-        public CustomerService(CustomerRepository customerRepository, OrderService orderService)
+        public CustomerService(CustomerRepository customerRepository, OrderService orderService, NodeRepository nodeRepository)
         {
             _customerRepository = customerRepository;
             _orderService = orderService;
+            _nodeRepository = nodeRepository;
         }
 
-        public async Task CreateCustomer(string? Id, string? firstName, string? lastName, int customerType, string uplineId, IEnumerable<(string Key, decimal Volume)>? volumes, ConcurrentDictionary<string, Customer> customerIds)
+        public async Task CreateCustomer(string? Id, string? firstName, string? lastName, int customerType, IEnumerable<(long treeId, string upline)>? uplineIds, IEnumerable<(string Key, decimal Volume)>? volumes, ConcurrentDictionary<string, Customer> customerIds)
         {
             if (customerIds.Count == 0)
             {
@@ -28,16 +30,35 @@ namespace DataLoader.Services
             }
 
             var customer = Customers.GetRandomCustomer(customerIds.Values.ToList()).ToCustomer(date: DateTime.UtcNow);
+
+            if (Id != null && customerIds.ContainsKey(Id))
+            {
+                customer = customerIds[Id];
+            }
+            
             customer.CustomerType = customerType;
             if (!string.IsNullOrWhiteSpace(Id)) customer.Id = Id;
             if (!string.IsNullOrWhiteSpace(firstName)) customer.FirstName = firstName;
             if (!string.IsNullOrWhiteSpace(lastName)) customer.LastName = lastName;
-            var newCust = await _customerRepository.CreateCustomer(customer, uplineId);
+            var newCust = await _customerRepository.SaveCustomer(customer);
+            Console.WriteLine($"Generating customer: Id:{newCust.Id} Name:{newCust.FirstName} {newCust.LastName}");
+
+            if (uplineIds != null) 
+            {
+                foreach (var item in uplineIds)
+                {
+                    var newCustId = newCust.Id ?? string.Empty;
+                    await _nodeRepository.InsertNode(item.treeId, newCustId, item.upline, newCustId, null);
+                }
+            }
 
             if (volumes != null)
             {
-                var filteredVols = volumes.Where(x => x.Volume != 0);
-                await _orderService.CreateOrder(newCust.Id ?? string.Empty, DateTime.UtcNow, filteredVols);
+                var filteredVols = volumes.Where(x => x.Volume != 0).ToList();
+                if (filteredVols.Count > 0)
+                {
+                    await _orderService.CreateOrder(newCust.Id ?? string.Empty, DateTime.UtcNow, filteredVols);
+                }
             }
 
             customerIds.TryAdd(newCust.Id ?? string.Empty, newCust);

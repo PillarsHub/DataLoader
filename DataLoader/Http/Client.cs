@@ -73,7 +73,7 @@ namespace DataLoader.Http
 
             if (responseMessage.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
-                throw new Exception("Not Found");
+                throw new NotFoundException();
             }
 
             throw new Exception(content);
@@ -143,5 +143,10 @@ namespace DataLoader.Http
         {
             return await client.GetAsync(requestUri);
         }
+    }
+
+    internal class NotFoundException :Exception
+    {
+        public NotFoundException() { }
     }
 }

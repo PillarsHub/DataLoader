@@ -15,10 +15,13 @@ namespace DataLoader.Services.Import
         private readonly AutoshipImporter _autoshipImporter;
         private readonly PaymentTokenImporter _paymentTokenImporter;
         private readonly TreeRepository _treeRepository;
+        private readonly DataModelImporter _dataModelImporter;
+        private readonly ExtendedImporter _extendedImporter;
 
         public ImportManager(NodeImporter nodeImporter, OrderImporter orderImporter, CustomerImporter customerImporter, InventoryImporter inventoryImporter,
             HistoricalValueImporter historicalValueImporter, SourceImporter sourceImporter, HistoricalBonusImporter historicalBonusImporter, 
-            AutoshipImporter autoshipImporter, PaymentTokenImporter paymentTokenImporter, TreeRepository treeRepository)
+            AutoshipImporter autoshipImporter, PaymentTokenImporter paymentTokenImporter, TreeRepository treeRepository, DataModelImporter dataModelImporter,
+            ExtendedImporter extendedImporter)
         {
             _nodeImporter = nodeImporter;
             _orderImporter = orderImporter;
@@ -30,6 +33,8 @@ namespace DataLoader.Services.Import
             _autoshipImporter = autoshipImporter;
             _paymentTokenImporter = paymentTokenImporter;
             _treeRepository = treeRepository;
+            _dataModelImporter = dataModelImporter;
+            _extendedImporter = extendedImporter;
         }
 
         public async Task BeginImport()
@@ -44,6 +49,7 @@ namespace DataLoader.Services.Import
             Console.WriteLine("Payment (T)okens");
             Console.WriteLine("Historical (V)alues");
             Console.WriteLine("Historical (B)onuses");
+            Console.WriteLine("e(X)tended Custom Import");
 
             Console.Write("> ");
             var input = Console.ReadLine()?.ToLower() ?? string.Empty;
@@ -186,10 +192,33 @@ namespace DataLoader.Services.Import
 
                 await _sourceImporter.Import(sourcePath.Trim('"'));
             }
+            else if (input == "x")
+            {
+                string? sourcePath = GetFilePathFromDialog();
+                if (string.IsNullOrWhiteSpace(sourcePath))
+                {
+                    Console.WriteLine("No file selected.");
+                    return;
+                }
+
+                await _extendedImporter.Import(sourcePath.Trim('"'));
+            }
             else
             {
                 Console.WriteLine($"{input} is not a valid option");
             }
+        }
+
+        public async Task ImportModel()
+        {
+            string? sourcePath = GetFilePathFromDialog();
+            if (string.IsNullOrWhiteSpace(sourcePath))
+            {
+                Console.WriteLine("No file selected.");
+                return;
+            }
+
+            await _dataModelImporter.Import(sourcePath.Trim('"'));
         }
 
         private static string? GetFilePathFromDialog()

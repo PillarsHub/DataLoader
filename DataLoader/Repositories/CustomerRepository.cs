@@ -33,7 +33,14 @@ namespace DataLoader.Repositories
 
         public async Task<Customer> SaveCustomer(Customer customer)
         {
-            return await _client.Put<Customer, Customer>($"/api/v1/Customers/{customer.Id}", customer);
+            if (string.IsNullOrWhiteSpace(customer.Id))
+            {
+                return await _client.Post<Customer, Customer>($"/api/v1/Customers", customer);
+            }
+            else
+            {
+                return await _client.Put<Customer, Customer>($"/api/v1/Customers/{customer.Id}", customer);
+            }
         }
 
         public async Task InsertSource(Source source)
@@ -64,6 +71,19 @@ namespace DataLoader.Repositories
             }
 
             return customers;
+        }
+
+        public async Task<bool> DeleteCustomer(string customerId)
+        {
+            try
+            {
+                return await _client.Delete($"/api/v1/Customers/{customerId}");
+            }
+            catch (NotFoundException)
+            {
+                int rr = 0;
+                return true;
+            }
         }
 
         public async Task<Period?> GetPeriod(DateTime date)

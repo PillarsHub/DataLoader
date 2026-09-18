@@ -1,4 +1,5 @@
 ﻿using DataLoader.Http;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace DataLoader.Repositories
 {
@@ -55,6 +56,24 @@ namespace DataLoader.Repositories
             }
             var idPart = $"?nodeIds=" + string.Join($"&nodeIds=", nodeIds);
             var result = await _client.Get<Node[]>($"/api/v1/Trees/{treeId}/Nodes{idPart}{datePart}&offset=0&count=500");
+            return result;
+        }
+
+        public async Task<Node[]> GetDownline(long treeId, string nodeId, int levels, DateTime? date)
+        {
+            var datePart = string.Empty;
+            if (date.HasValue)
+            {
+                if (date.Value.Kind == DateTimeKind.Unspecified)
+                {
+                    date = DateTime.SpecifyKind(date.Value, DateTimeKind.Utc);
+                }
+
+                var periodDate = date.Value.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+                datePart = $"&date={periodDate}";
+            }
+
+            var result = await _client.Get<Node[]>($"/api/v1/Trees/{treeId}/Nodes/{nodeId}/downline?levels={levels}{datePart}&offset=0&count=500");
             return result;
         }
 

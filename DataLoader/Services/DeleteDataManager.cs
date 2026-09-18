@@ -46,6 +46,14 @@ namespace DataLoader.Services
             }
 
             var aa = 0;
+
+            var count = 0;
+            foreach (var id in IdsToDelete)
+            {
+                count++;
+                await _customerRepository.DeleteCustomer(id);
+                Console.WriteLine($"Deleteting Customer {id} - {count}/{IdsToDelete.Count()}");
+            }
         }
 
 
