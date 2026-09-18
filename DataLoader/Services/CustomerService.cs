@@ -9,16 +9,18 @@ namespace DataLoader.Services
     {
         private readonly CustomerRepository _customerRepository;
         private readonly OrderService _orderService;
-        private readonly NodeRepository _nodeRepository;
+        private readonly NodeService _nodeService;
 
-        public CustomerService(CustomerRepository customerRepository, OrderService orderService, NodeRepository nodeRepository)
+        public CustomerService(CustomerRepository customerRepository, OrderService orderService, NodeService nodeRepository)
         {
             _customerRepository = customerRepository;
             _orderService = orderService;
-            _nodeRepository = nodeRepository;
+            _nodeService = nodeRepository;
         }
 
-        public async Task CreateCustomer(string? Id, string? firstName, string? lastName, int customerType, IEnumerable<(long treeId, string upline)>? uplineIds, IEnumerable<(string Key, decimal Volume)>? volumes, ConcurrentDictionary<string, Customer> customerIds)
+        public async Task CreateCustomer(string? Id, string? firstName, string? lastName, int customerType, DateTime? signupDate,
+            IEnumerable<(long TreeId, string Upline, string? UplineLeg, bool RandomUpline)>? uplineIds, 
+            IEnumerable<(string Key, decimal Volume)>? volumes, ConcurrentDictionary<string, Customer> customerIds)
         {
             if (customerIds.Count == 0)
             {
@@ -31,24 +33,33 @@ namespace DataLoader.Services
 
             var customer = Customers.GetRandomCustomer(customerIds.Values.ToList()).ToCustomer(date: DateTime.UtcNow);
 
+            bool exists = false;
             if (Id != null && customerIds.ContainsKey(Id))
             {
                 customer = customerIds[Id];
+                exists = true;
             }
             
             customer.CustomerType = customerType;
             if (!string.IsNullOrWhiteSpace(Id)) customer.Id = Id;
             if (!string.IsNullOrWhiteSpace(firstName)) customer.FirstName = firstName;
             if (!string.IsNullOrWhiteSpace(lastName)) customer.LastName = lastName;
-            var newCust = await _customerRepository.SaveCustomer(customer);
+            if (signupDate.HasValue) customer.SignupDate = signupDate.Value;
+            var newCust = await _customerRepository.SaveCustomer(customer, exists);
+            var newCustId = newCust.Id ?? string.Empty;
             Console.WriteLine($"Generating customer: Id:{newCust.Id} Name:{newCust.FirstName} {newCust.LastName}");
 
             if (uplineIds != null) 
             {
                 foreach (var item in uplineIds)
                 {
-                    var newCustId = newCust.Id ?? string.Empty;
-                    await _nodeRepository.InsertNode(item.treeId, newCustId, item.upline, newCustId, null);
+                    var uplineId = item.Upline;
+                    if (item.RandomUpline)
+                    {
+                        uplineId = await _nodeService.FindRandomDownline(item.TreeId, newCustId, item.Upline, 10);
+                    }
+
+                    await _nodeService.InsertNode(item.TreeId, newCustId, item.Upline, item.UplineLeg ?? newCustId, null);
                 }
             }
 
@@ -57,11 +68,11 @@ namespace DataLoader.Services
                 var filteredVols = volumes.Where(x => x.Volume != 0).ToList();
                 if (filteredVols.Count > 0)
                 {
-                    await _orderService.CreateOrder(newCust.Id ?? string.Empty, DateTime.UtcNow, filteredVols);
+                    await _orderService.CreateOrder(newCustId, DateTime.UtcNow, filteredVols);
                 }
             }
 
-            customerIds.TryAdd(newCust.Id ?? string.Empty, newCust);
+            customerIds.TryAdd(newCustId, newCust);
         }
 
         public async Task CreateCustomers(int count, int customerType, string? uplineId, bool stack, DateTime date, string[]? volumeKeys, (DateTime Date, decimal Volume)[]? volumes, ConcurrentDictionary<string, Customer> customerIds)

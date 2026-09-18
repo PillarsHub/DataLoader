@@ -40,10 +40,11 @@ namespace DataLoader.Services.Import
             var FirstNameKey = keys[1];
             var LastNameKey = keys[2];
             var IdKey = keys[3];
-            var DownlineCountKey = keys[4];
+            var SignupDateKey = keys[4];
+            var DownlineCountKey = keys[5];
 
-            var treeKeys = FindTreeColumns(keys, allTrees, 5);
-            var volumeKeys = FindVolumeKeys(keys, 5 + (treeKeys.Length * 2));
+            var treeKeys = FindTreeColumns(keys, allTrees, 6);
+            var volumeKeys = FindVolumeKeys(keys, 6 + (treeKeys.Length * 2));
 
             Console.WriteLine();
             var treeNameArray = string.Join(",", treeKeys.Select(x => x.TreeName).ToArray());
@@ -66,6 +67,12 @@ namespace DataLoader.Services.Import
                 }
 
                 int.TryParse(customType.Value, out int customerTypeInt);
+                DateTime? signupDate = null;
+                var signUpDateString = row[SignupDateKey];
+                if (!string.IsNullOrWhiteSpace(signUpDateString) && DateTime.TryParse(signUpDateString, out DateTime parcedSignupDate))
+                {
+                    signupDate = parcedSignupDate;
+                }
 
                 var rowSpec = new DataModelSpecification
                 {
@@ -73,15 +80,19 @@ namespace DataLoader.Services.Import
                     FirstName = row[FirstNameKey],
                     LastName = row[LastNameKey],
                     Id = row[IdKey],
+                    SignupDate = signupDate,
                     DownlineCount = downlineCount,
                     UplineIds = treeKeys.Select(x => 
                     {
-                        bool.TryParse(row[x.RandomDownlineKey], out bool randomDownline);
+                        var randomDownline = string.Equals("Random", x.LegName, StringComparison.InvariantCultureIgnoreCase);
+                        var naDownline = string.Equals("NA", x.LegName, StringComparison.InvariantCultureIgnoreCase);
+
                         return new DataModelUplineIds
                         {
                             TreeId = x.TreeId,
                             RandomDownline = randomDownline,
-                            UplineId = row[x.UplineIdKey]
+                            UplineId = row[x.UplineIdKey],
+                            UplineLeg = randomDownline || naDownline ? null : x.LegName
                         };
                     }).ToArray(),
                     Volume = volumeKeys.Select(x => 
@@ -154,9 +165,9 @@ namespace DataLoader.Services.Import
         private async Task CreateCustomer(DataModelSpecification item, ConcurrentDictionary<string, Customer> customerIds)
         {
             var volumes = item.Volume.Select(x => (x.VolumeId, x.VolumeAmount)).ToList();
-            var uplines = item.UplineIds.Select(x => (x.TreeId, x.UplineId)).ToList();
+            var uplines = item.UplineIds.Select(x => (x.TreeId, x.UplineId, x.UplineLeg, x.RandomDownline)).ToList();
 
-            await _customerService.CreateCustomer(item.Id, item.FirstName, item.LastName, item.CustomerType, uplines, volumes, customerIds);
+            await _customerService.CreateCustomer(item.Id, item.FirstName, item.LastName, item.CustomerType, item.SignupDate, uplines, volumes, customerIds);
         }
 
         private string[] FindVolumeKeys(string[] keys, int index)
@@ -185,7 +196,7 @@ namespace DataLoader.Services.Import
                         TreeId = tree.Id,
                         TreeName = tree.Name,
                         UplineIdKey = keys[index],
-                        RandomDownlineKey = keys[index + 1],
+                        LegName = keys[index + 1],
                     });
 
                     results.AddRange(FindTreeColumns(keys, trees, index + 2));
@@ -200,7 +211,7 @@ namespace DataLoader.Services.Import
     internal class TreeColumnKey
     {
         public string UplineIdKey { get; set; } = string.Empty;
-        public string RandomDownlineKey { get; set; } = string.Empty;
+        public string LegName { get; set; } = string.Empty;
         public long TreeId { get; set; }
         public string TreeName { get; set; } = string.Empty;
     }
@@ -211,6 +222,7 @@ namespace DataLoader.Services.Import
         public string? FirstName { get; set; }
         public string? LastName { get; set; } 
         public string? Id { get; set; } 
+        public DateTime? SignupDate { get; set; }
         public int DownlineCount { get; set; }
         public DataModelUplineIds[] UplineIds { get; set; } = Array.Empty<DataModelUplineIds>();
         public DataModelVolume[] Volume { get; set; } = Array.Empty<DataModelVolume>();
@@ -220,6 +232,7 @@ namespace DataLoader.Services.Import
     {
         public long TreeId { get; set; }
         public string UplineId { get; set; } = string.Empty;
+        public string? UplineLeg { get; set; } = null;
         public bool RandomDownline { get; set; }
     }
 

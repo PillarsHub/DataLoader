@@ -117,7 +117,7 @@ internal class CustomerImporter
             {
                 try
                 {
-                    await _customerRepository.SaveCustomer(customer);
+                    await _customerRepository.SaveCustomer(customer, !string.IsNullOrWhiteSpace(customer.Id));
                     Console.WriteLine($"Imported {customer.Id}");
                 }
                 catch (Exception ex)

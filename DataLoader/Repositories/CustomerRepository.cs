@@ -31,15 +31,15 @@ namespace DataLoader.Repositories
             return result;
         }
 
-        public async Task<Customer> SaveCustomer(Customer customer)
+        public async Task<Customer> SaveCustomer(Customer customer, bool exists)
         {
-            if (string.IsNullOrWhiteSpace(customer.Id))
+            if (exists)
             {
-                return await _client.Post<Customer, Customer>($"/api/v1/Customers", customer);
+                return await _client.Put<Customer, Customer>($"/api/v1/Customers/{customer.Id}", customer);
             }
             else
             {
-                return await _client.Put<Customer, Customer>($"/api/v1/Customers/{customer.Id}", customer);
+                return await _client.Post<Customer, Customer>($"/api/v1/Customers", customer);
             }
         }
 
