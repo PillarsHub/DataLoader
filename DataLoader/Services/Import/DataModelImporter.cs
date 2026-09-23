@@ -84,15 +84,16 @@ namespace DataLoader.Services.Import
                     DownlineCount = downlineCount,
                     UplineIds = treeKeys.Select(x => 
                     {
-                        var randomDownline = string.Equals("Random", x.LegName, StringComparison.InvariantCultureIgnoreCase);
-                        var naDownline = string.Equals("NA", x.LegName, StringComparison.InvariantCultureIgnoreCase);
+                        var legName = row[x.LegName];
+                        var randomDownline = string.Equals("Random", legName, StringComparison.InvariantCultureIgnoreCase);
+                        var naDownline = string.Equals("NA", legName, StringComparison.InvariantCultureIgnoreCase);
 
                         return new DataModelUplineIds
                         {
                             TreeId = x.TreeId,
                             RandomDownline = randomDownline,
                             UplineId = row[x.UplineIdKey],
-                            UplineLeg = randomDownline || naDownline ? null : x.LegName
+                            UplineLeg = randomDownline || naDownline || string.IsNullOrWhiteSpace(legName) ? null : legName
                         };
                     }).ToArray(),
                     Volume = volumeKeys.Select(x => 
@@ -111,7 +112,7 @@ namespace DataLoader.Services.Import
 
 
             Console.WriteLine();
-            Console.WriteLine("Proceed with Model Import.");
+            Console.WriteLine("Proceed with Model Import. (y/n)");
             Console.Write("> ");
             var input = Console.ReadLine()?.ToLower() ?? string.Empty;
 
