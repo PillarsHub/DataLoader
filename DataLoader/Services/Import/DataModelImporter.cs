@@ -125,11 +125,10 @@ namespace DataLoader.Services.Import
                 foreach (var item in model)
                 {
                     total += Math.Max(item.DownlineCount, 1);
-                    if (row != 0)
-                    {
-                        Console.WriteLine($"Createing {Math.Max(item.DownlineCount, 1)} customers for model row {row}/{model.Count - 1})");
-                        await ImportModelItem(item, customerIds);
-                    }
+
+                    Console.WriteLine($"Createing {Math.Max(item.DownlineCount, 1)} customers for model row {row}/{model.Count - 1})");
+                    await ImportModelItem(item, customerIds);
+
                     row += 1;
                 }
             }
