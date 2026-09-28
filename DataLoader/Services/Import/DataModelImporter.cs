@@ -86,14 +86,14 @@ namespace DataLoader.Services.Import
                     {
                         var legName = row[x.LegName];
                         var randomDownline = string.Equals("Random", legName, StringComparison.InvariantCultureIgnoreCase);
-                        var naDownline = string.Equals("NA", legName, StringComparison.InvariantCultureIgnoreCase);
+                        var naDownline = string.Equals("NA", legName, StringComparison.InvariantCultureIgnoreCase) || string.Equals("N/A", legName, StringComparison.InvariantCultureIgnoreCase);
 
                         return new DataModelUplineIds
                         {
                             TreeId = x.TreeId,
                             RandomDownline = randomDownline,
                             UplineId = row[x.UplineIdKey],
-                            UplineLeg = randomDownline || naDownline || string.IsNullOrWhiteSpace(legName) ? null : legName
+                            UplineLeg = !randomDownline || naDownline || string.IsNullOrWhiteSpace(legName) ? null : legName
                         };
                     }).ToArray(),
                     Volume = volumeKeys.Select(x => 
