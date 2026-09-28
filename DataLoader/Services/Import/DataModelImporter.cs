@@ -110,6 +110,8 @@ namespace DataLoader.Services.Import
                 model.Add(rowSpec);
             }
 
+            var totalCustomers = model.Select(x => x.DownlineCount > 0 ? x.DownlineCount : 1).Sum();
+            Console.WriteLine($"Imported Model contains {totalCustomers} total customers.");
 
             Console.WriteLine();
             Console.WriteLine("Proceed with Model Import. (y/n)");

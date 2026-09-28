@@ -54,12 +54,16 @@ namespace DataLoader.Services
                 foreach (var item in uplineIds)
                 {
                     var uplineId = item.Upline;
+                    var uplineLeg = item.UplineLeg;
                     if (item.RandomUpline)
                     {
-                        uplineId = await _nodeService.FindRandomDownline(item.TreeId, newCustId, item.Upline, 10);
+                        var rUplineId = await _nodeService.FindRandomDownline(item.TreeId, newCustId, item.Upline, 10);
+
+                        uplineId = rUplineId ?? item.Upline;
+                        uplineLeg = null;
                     }
 
-                    await _nodeService.InsertNode(item.TreeId, newCustId, item.Upline, item.UplineLeg ?? newCustId, null);
+                    await _nodeService.InsertNode(item.TreeId, newCustId, uplineId, uplineLeg ?? newCustId, null);
                 }
             }
 
